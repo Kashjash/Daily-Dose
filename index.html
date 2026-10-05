@@ -8,28 +8,48 @@
 </head>
 <body>
     <header class="top-bar">
-        <h1>Mi Feed</h1>
+        <div class="brand">
+            <h1>Mi Feed</h1>
+            <span id="user-badge" title="Perfil Local Activo">👤 Local</span>
+        </div>
         <div class="actions">
-            <button id="theme-toggle">🌓</button>
+            <button id="theme-toggle" title="Cambiar Tema">🌓</button>
+            <button id="settings-btn" title="Configurar Filtros">⚙️</button>
         </div>
     </header>
 
     <nav class="categories-scroll">
-        <button class="active">Resumen del Día</button>
-        <button>Finanzas</button>
-        <button>Tecnología</button>
-        <button>Deportes</button>
-        <button>Guardados 🔖</button>
+        <button class="active" data-category="Resumen del Día">Resumen del Día</button>
+        <button data-category="Finanzas">Finanzas</button>
+        <button data-category="Tecnología">Tecnología</button>
+        <button data-category="Deportes">Deportes</button>
+        <button data-category="Guardados">Guardados 🔖</button>
     </nav>
 
-    <main id="feed-container"></main>
+    <main id="feed-container">
+        <p style="text-align:center; padding: 40px; color: var(--text-muted);">Cargando tu entorno...</p>
+    </main>
 
-    <!-- Ventana de Lectura (Muro Roto) -->
+    <!-- Modal de Lectura Inmersiva -->
     <div id="reader-modal" class="modal hidden">
         <div class="modal-content">
-            <button id="close-modal">✖ Cerrar</button>
-            <h1 id="reader-title"></h1>
+            <button id="close-modal">← Volver al Feed</button>
+            <h2 id="reader-title"></h2>
             <div id="reader-body"></div>
+        </div>
+    </div>
+
+    <!-- Modal de Configuración / Perfil de Usuario -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <button id="close-settings">← Cerrar</button>
+            <h2>Tu Perfil Local</h2>
+            <p style="color: var(--text-muted); font-size: 14px;">Tus datos viven únicamente en este dispositivo (Privacidad total).</p>
+            <div class="settings-group">
+                <label>Palabras bloqueadas (separadas por coma):</label>
+                <input type="text" id="blocked-input">
+                <button id="save-settings-btn" style="margin-top: 10px;">Guardar Filtros</button>
+            </div>
         </div>
     </div>
 
