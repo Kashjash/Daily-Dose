@@ -10,7 +10,7 @@ themeToggleBtn.addEventListener('click', () => {
     localStorage.setItem('theme', newTheme);
 });
 
-// --- 2. PERFIL LOCAL Y CATEGORÍAS MODIFICABLES ---
+// --- 2. PERFIL LOCAL Y CATEGORÍAS ---
 let userPrefs = JSON.parse(localStorage.getItem('newsPrefs')) || { 
     blockedKeywords: ['clickbait', 'rumor'], 
     savedArticles: [],
@@ -20,15 +20,20 @@ let userPrefs = JSON.parse(localStorage.getItem('newsPrefs')) || {
 
 function savePrefs() { localStorage.setItem('newsPrefs', JSON.stringify(userPrefs)); }
 
-// Renderizar dinámicamente las pestañas según las categorías del usuario
+// Renderizar categorías de forma persistente y segura
 function renderizarCategorias() {
     const container = document.getElementById('categories-container');
+    if (!container) return;
     container.innerHTML = '';
     
     userPrefs.categories.forEach((cat, index) => {
         const btn = document.createElement('button');
         btn.innerText = cat === 'Guardados' ? '🔖 Guardados' : cat;
-        if (index === 0) btn.className = 'active';
+        if (cat === categoriaActual) btn.className = 'active';
+        else if (!categoriaActual && index === 0) {
+            btn.className = 'active';
+            categoriaActual = cat;
+        }
         
         btn.addEventListener('click', (e) => {
             container.querySelectorAll('button').forEach(b => b.classList.remove('active'));
@@ -85,7 +90,24 @@ document.getElementById('close-modal').addEventListener('click', () => {
 let articulosEnPantalla = [];
 let categoriaActual = userPrefs.categories[0] || 'Resumen del Día';
 
-// --- 4. EXTRACCIÓN MULTIMEDIA Y TL;DR ---
+// --- 4. UTILIDADES: TIEMPO DE LECTURA, IDIOMA Y MULTIMEDIA ---
+function calcularTiempoLectura(textoHtml) {
+    if (!textoHtml) return "1 min";
+    let textoPlano = textoHtml.replace(/<[^>]*>?/gm, '');
+    let palabras = textoPlano.split(/\s+/).length;
+    let minutos = Math.ceil(palabras / 200); // 200 palabras por minuto promedio
+    return `${minutos} min lectura`;
+}
+
+function detectarIdioma(texto) {
+    if (!texto) return "Español";
+    let textoLC = texto.toLowerCase();
+    // Palabras comunes en inglés vs español para una detección rápida y ligera
+    let tokensIngles = ['the', 'and', 'with', 'from', 'that', 'this', 'have', 'said', 'will'];
+    let matches = tokensIngles.filter(token => textoLC.includes(` ${token} `)).length;
+    return matches >= 2 ? "English" : "Español";
+}
+
 function extraerMultimedia(item) {
     let imageUrl = item.thumbnail || (item.enclosure && item.enclosure.link);
     if (!imageUrl && item.content) {
@@ -130,6 +152,8 @@ function renderizarTarjetas(articulos, esGuardado = false) {
         const tldr = generarTLDR(item.resumen);
         const media = extraerMultimedia(item);
         const ratingActual = userPrefs.ratings[item.titulo] || 0;
+        const tiempoLectura = calcularTiempoLectura(item.contenido || item.resumen);
+        const idioma = detectarIdioma(item.titulo + " " + item.resumen);
 
         const card = document.createElement('article');
         card.className = 'news-card';
@@ -141,7 +165,7 @@ function renderizarTarjetas(articulos, esGuardado = false) {
             <div class="card-content-pad">
                 <div class="card-header-meta">
                     <span>🗞️ ${item.fuente}</span>
-                    <span>${item.fecha || 'Reciente'}</span>
+                    <span>⏱️ ${tiempoLectura} • 🌐 ${idioma}</span>
                 </div>
                 <h2>${item.titulo}</h2>
                 <p class="tldr">▶ ${tldr}</p>
@@ -162,13 +186,18 @@ function renderizarTarjetas(articulos, esGuardado = false) {
             document.getElementById('reader-title').innerText = item.titulo;
             document.getElementById('reader-source').innerText = item.fuente;
             document.getElementById('reader-date').innerText = item.fecha || new Date().toLocaleDateString();
+            document.getElementById('reader-lang').innerText = idioma;
+            document.getElementById('reader-time').innerText = tiempoLectura;
             
             const heroMedia = document.getElementById('reader-hero-media');
             heroMedia.innerHTML = media.videoHtml || (media.imageUrl ? `<img src="${media.imageUrl}" alt="Hero">` : '');
 
             document.getElementById('reader-body').innerHTML = item.contenido || item.resumen;
+            
+            // Abrir modal y bloquear scroll de fondo de forma estricta
             readerModal.classList.remove('hidden');
             document.body.classList.add('modal-open');
+            readerModal.querySelector('.modal-scroll-area').scrollTop = 0;
         });
 
         card.querySelector('.btn-guardar').addEventListener('click', () => {
@@ -198,7 +227,7 @@ function renderizarTarjetas(articulos, esGuardado = false) {
     });
 }
 
-// --- 6. CARGA RSS CON FILTRO ESTRICTO DE FECHA RECIENTE ---
+// --- 6. CARGA RSS ---
 async function cargarNoticias(categoria) {
     feedContainer.innerHTML = `<p style="text-align:center; padding: 40px; color: var(--text-muted);">Sincronizando noticias recientes...</p>`;
     articulosEnPantalla = [];
@@ -211,7 +240,7 @@ async function cargarNoticias(categoria) {
     } else if (catLower.includes('tecnolog') || catLower.includes('xataka')) {
         rssUrl = 'https://feeds.weblogssl.com/xataka2';
     } else if (catLower.includes('deporte') || catLower.includes('futbol')) {
-        rssUrl = 'https://as.com/rss/motor/formula1.xml'; // Feed deportivo activo actual
+        rssUrl = 'https://as.com/rss/motor/formula1.xml';
     }
 
     const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&_t=${Date.now()}`;
@@ -222,7 +251,6 @@ async function cargarNoticias(categoria) {
         
         if (datos.status !== "ok") throw new Error("Error RSS");
 
-        // Filtrar y ordenar por fecha para garantizar que sean recientes
         let itemsValidos = datos.items.map(item => {
             return {
                 titulo: item.title,
@@ -234,7 +262,7 @@ async function cargarNoticias(categoria) {
                 enclosure: item.enclosure || null,
                 thumbnail: item.thumbnail || null
             };
-        }).sort((a, b) => b.fechaPub - a.fechaPub); // Orden descendente (más nuevo primero)
+        }).sort((a, b) => b.fechaPub - a.fechaPub);
 
         itemsValidos.forEach(item => {
             const titular = item.titulo ? item.titulo.toLowerCase() : "";
@@ -255,4 +283,4 @@ async function cargarNoticias(categoria) {
 
 // Inicializar interfaz
 renderizarCategorias();
-cargarNoticias(userPrefs.categories[0]);
+cargarNoticias(userPrefs.categories[0] || 'Resumen del Día');
