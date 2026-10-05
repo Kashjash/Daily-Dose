@@ -4,7 +4,7 @@
     --card-border: rgba(255, 255, 255, 0.08);
     --text-main: #f3f4f6;
     --text-muted: #9ca3af;
-    --accent: #818cf8; /* Azul suave y elegante que no quema la vista */
+    --accent: #818cf8;
     --accent-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
     --blur-strength: blur(16px);
     --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
@@ -33,9 +33,12 @@ body {
     transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Bloquear el scroll del fondo cuando el modal está abierto */
+/* Bloqueo estricto del scroll de la página principal cuando un modal está abierto */
 body.modal-open {
     overflow: hidden;
+    height: 100vh;
+    position: fixed;
+    width: 100%;
 }
 
 .top-bar {
@@ -160,7 +163,6 @@ body.modal-open {
     line-height: 1.5;
 }
 
-/* Enlaces limpios y legibles con el tono acentuado correcto */
 #reader-body a, .news-card a {
     color: var(--accent);
     text-decoration: underline;
@@ -192,7 +194,7 @@ body.modal-open {
 .action-btn.primary { background: var(--accent-gradient); color: white; border: none; }
 .action-btn.voted { background: #10b981; color: white; border: none; }
 
-/* Modales */
+/* Modales con capa fija y aislamiento de scroll perfecto */
 .modal {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     z-index: 2000; display: flex; align-items: flex-end; justify-content: center;
@@ -201,12 +203,12 @@ body.modal-open {
 
 .modal-backdrop {
     position: absolute; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
-.glass-card {
+.modal-window {
     position: relative;
     width: 100%;
     max-width: 700px;
@@ -215,10 +217,22 @@ body.modal-open {
     border: 1px solid var(--card-border);
     border-top-left-radius: 28px;
     border-top-right-radius: 28px;
-    padding: 24px;
-    overflow-y: auto; /* Scroll propio aislado */
-    box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.6);
     z-index: 2001;
+}
+
+.modal-header-bar {
+    padding: 20px 24px 10px 24px;
+    flex-shrink: 0;
+}
+
+.modal-scroll-area {
+    padding: 0 24px 40px 24px;
+    overflow-y: auto;
+    flex-grow: 1;
+    scrollbar-width: thin;
 }
 
 .close-btn {
@@ -229,7 +243,6 @@ body.modal-open {
     border-radius: 12px;
     font-weight: 600;
     cursor: pointer;
-    margin-bottom: 20px;
 }
 
 #reader-hero-media img, #reader-hero-media iframe {
