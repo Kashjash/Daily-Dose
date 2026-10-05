@@ -3,53 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Feed Puro</title>
+    <title>Nexus Feed Pro</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Cabecera Fija con Blur (Glassmorphism) -->
     <header class="top-bar">
         <div class="brand">
-            <h1>Mi Feed</h1>
-            <span id="user-badge" title="Perfil Local Activo">👤 Local</span>
+            <h1>Nexus</h1>
+            <span id="user-badge" title="Perfil Local Activo">⚡ Local Core</span>
         </div>
         <div class="actions">
             <button id="theme-toggle" title="Cambiar Tema">🌓</button>
-            <button id="settings-btn" title="Configurar Filtros">⚙️</button>
+            <button id="settings-btn" title="Configurar Filtros y Perfil">⚙️</button>
         </div>
     </header>
 
+    <!-- Navegación de Categorías -->
     <nav class="categories-scroll">
-        <button class="active" data-category="Resumen del Día">Resumen del Día</button>
-        <button data-category="Finanzas">Finanzas</button>
-        <button data-category="Tecnología">Tecnología</button>
-        <button data-category="Deportes">Deportes</button>
-        <button data-category="Guardados">Guardados 🔖</button>
+        <button class="active" data-category="Resumen del Día">🌟 Resumen del Día</button>
+        <button data-category="Finanzas">📈 Finanzas</button>
+        <button data-category="Tecnología">💻 Tecnología</button>
+        <button data-category="Deportes">⚽ Deportes</button>
+        <button data-category="Guardados">🔖 Guardados</button>
     </nav>
 
+    <!-- Contenedor Principal de Noticias -->
     <main id="feed-container">
-        <p style="text-align:center; padding: 40px; color: var(--text-muted);">Cargando tu entorno...</p>
+        <div class="loading-state">Sincronizando fuentes globales...</div>
     </main>
 
-    <!-- Modal de Lectura Inmersiva -->
+    <!-- Modal de Lectura Inmersiva (Sin salir de la app) -->
     <div id="reader-modal" class="modal hidden">
-        <div class="modal-content">
-            <button id="close-modal">← Volver al Feed</button>
+        <div class="modal-backdrop"></div>
+        <div class="modal-content glass-card">
+            <button id="close-modal" class="close-btn">← Volver al Feed</button>
+            <div id="reader-hero-media"></div>
             <h2 id="reader-title"></h2>
+            <div class="reader-meta-info"><span id="reader-source"></span> • <span id="reader-date"></span></div>
+            <hr class="divider">
             <div id="reader-body"></div>
         </div>
     </div>
 
-    <!-- Modal de Configuración / Perfil de Usuario -->
+    <!-- Modal de Onboarding y Perfil / Filtros -->
     <div id="settings-modal" class="modal hidden">
-        <div class="modal-content">
-            <button id="close-settings">← Cerrar</button>
-            <h2>Tu Perfil Local</h2>
-            <p style="color: var(--text-muted); font-size: 14px;">Tus datos viven únicamente en este dispositivo (Privacidad total).</p>
+        <div class="modal-backdrop"></div>
+        <div class="modal-content glass-card">
+            <button id="close-settings" class="close-btn">✕ Cerrar</button>
+            <h2>Tu Perfil y Motor Anti-Ruido</h2>
+            <p class="modal-subtitle">Privacidad absoluta en tu dispositivo (localStorage). Configura qué deseas vetar de inmediato.</p>
+            
             <div class="settings-group">
-                <label>Palabras bloqueadas (separadas por coma):</label>
-                <input type="text" id="blocked-input">
-                <button id="save-settings-btn" style="margin-top: 10px;">Guardar Filtros</button>
+                <label>Palabras clave vetadas (separadas por comas):</label>
+                <input type="text" id="blocked-input" placeholder="ej: clickbait, rumor, sensacionalismo">
             </div>
+
+            <div class="settings-group">
+                <label>Fuentes personalizadas (URL RSS opcional):</label>
+                <input type="text" id="custom-rss-input" placeholder="https://tu-web.com/rss">
+            </div>
+
+            <button id="save-settings-btn" class="primary-btn">Guardar y Aplicar Cambios</button>
         </div>
     </div>
 
