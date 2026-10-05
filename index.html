@@ -10,7 +10,7 @@
     <header class="top-bar">
         <div class="brand">
             <h1>Nexus</h1>
-            <span id="user-badge">⚡ Live Core</span>
+            <span id="user-badge">⚡ Pro Core</span>
         </div>
         <div class="actions">
             <button id="theme-toggle" title="Cambiar Tema">🌓</button>
@@ -18,47 +18,60 @@
         </div>
     </header>
 
-    <!-- Barra de Categorías Dinámica -->
+    <!-- Barra de Categorías Asegurada -->
     <nav id="categories-container" class="categories-scroll">
-        <!-- Generadas por JS -->
+        <!-- Renderizado dinámico blindado -->
     </nav>
 
     <main id="feed-container">
         <div class="loading-state">Sincronizando actualidad reciente...</div>
     </main>
 
-    <!-- Modal de Lectura Inmersiva (Con scroll bloqueado al fondo) -->
+    <!-- Modal de Lectura Inmersiva (Con scroll interno estricto y sin mover el fondo) -->
     <div id="reader-modal" class="modal hidden">
         <div class="modal-backdrop"></div>
-        <div class="modal-content glass-card">
-            <button id="close-modal" class="close-btn">← Volver al Feed</button>
-            <div id="reader-hero-media"></div>
-            <h2 id="reader-title"></h2>
-            <div class="reader-meta-info"><span id="reader-source"></span> • <span id="reader-date"></span></div>
-            <hr class="divider">
-            <div id="reader-body"></div>
+        <div class="modal-window glass-card">
+            <div class="modal-header-bar">
+                <button id="close-modal" class="close-btn">← Volver al Feed</button>
+            </div>
+            <div class="modal-scroll-area">
+                <div id="reader-hero-media"></div>
+                <h2 id="reader-title"></h2>
+                <div class="reader-meta-info">
+                    <span id="reader-source"></span> • 
+                    <span id="reader-date"></span> • 
+                    <span id="reader-lang"></span> • 
+                    <span id="reader-time"></span>
+                </div>
+                <hr class="divider">
+                <div id="reader-body"></div>
+            </div>
         </div>
     </div>
 
     <!-- Modal de Configuración y Categorías Modificables -->
     <div id="settings-modal" class="modal hidden">
         <div class="modal-backdrop"></div>
-        <div class="modal-content glass-card">
-            <button id="close-settings" class="close-btn">✕ Cerrar</button>
-            <h2>Personalización y Motor Anti-Ruido</h2>
-            <p class="modal-subtitle">Modifica tus categorías o añade feeds RSS personalizados a tu gusto.</p>
-            
-            <div class="settings-group">
-                <label>Tus Categorías (separadas por comas):</label>
-                <input type="text" id="categories-input" placeholder="ej: Resumen del Día, Finanzas, Tecnología, Deportes">
+        <div class="modal-window glass-card">
+            <div class="modal-header-bar">
+                <button id="close-settings" class="close-btn">✕ Cerrar</button>
             </div>
+            <div class="modal-scroll-area">
+                <h2>Personalización del Sistema</h2>
+                <p class="modal-subtitle">Modifica tus categorías o añade feeds RSS personalizados.</p>
+                
+                <div class="settings-group">
+                    <label>Tus Categorías (separadas por comas):</label>
+                    <input type="text" id="categories-input">
+                </div>
 
-            <div class="settings-group">
-                <label>Palabras clave vetadas (separadas por comas):</label>
-                <input type="text" id="blocked-input" placeholder="ej: clickbait, rumor">
+                <div class="settings-group">
+                    <label>Palabras clave vetadas (separadas por comas):</label>
+                    <input type="text" id="blocked-input">
+                </div>
+
+                <button id="save-settings-btn" class="primary-btn">Guardar Cambios</button>
             </div>
-
-            <button id="save-settings-btn" class="primary-btn">Guardar Cambios</button>
         </div>
     </div>
 
