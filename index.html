@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Feed Puro</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="top-bar">
+        <h1>Mi Feed</h1>
+        <div class="actions">
+            <button id="theme-toggle">🌓</button>
+            <button id="settings-toggle">⚙️</button>
+        </div>
+    </header>
+
+    <nav class="categories-scroll">
+        <button class="active">Resumen del Día</button>
+        <button>Finanzas</button>
+        <button>Tecnología</button>
+        <button>Deportes</button>
+    </nav>
+
+    <main id="feed-container">
+        <!-- Aquí se inyectarán las tarjetas de noticias con JavaScript -->
+        <article class="news-card">
+            <div class="card-meta">
+                <span class="source">🗞️ Bloomberg</span>
+                <span class="read-time">⏱️ 3 min</span>
+            </div>
+            <h2>Ejemplo del diseño del titular ultralimpio para tu lectura</h2>
+            <p class="tldr">▶ Esto es una viñeta TL;DR autogenerada con lo más importante para leer rápido.</p>
+            <div class="card-actions">
+                <button title="Muro roto / Leer completo">🔓 Leer</button>
+                <button title="No me interesa este tema">❌ Ocultar</button>
+                <button title="Guardar para luego">🔖 Guardar</button>
+            </div>
+        </article>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
