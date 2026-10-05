@@ -1,4 +1,4 @@
-// --- 1. GESTIÓN DE TEMA (CLARO / OSCURO) ---
+// --- 1. GESTIÓN DE TEMA ---
 const themeToggleBtn = document.getElementById('theme-toggle');
 const currentTheme = localStorage.getItem('theme') || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
 document.documentElement.setAttribute('data-theme', currentTheme);
@@ -10,62 +10,83 @@ themeToggleBtn.addEventListener('click', () => {
     localStorage.setItem('theme', newTheme);
 });
 
-// --- 2. PERFIL LOCAL Y CONFIGURACIÓN ---
+// --- 2. PERFIL LOCAL Y CATEGORÍAS MODIFICABLES ---
 let userPrefs = JSON.parse(localStorage.getItem('newsPrefs')) || { 
-    blockedKeywords: ['clickbait', 'woke', 'sensacionalismo'], 
+    blockedKeywords: ['clickbait', 'rumor'], 
     savedArticles: [],
-    ratings: {} // Almacena valoraciones de noticias por ID/Título
+    categories: ['Resumen del Día', 'Finanzas', 'Tecnología', 'Deportes', 'Guardados'],
+    ratings: {}
 };
 
 function savePrefs() { localStorage.setItem('newsPrefs', JSON.stringify(userPrefs)); }
 
-// Modal de Configuración / Onboarding
+// Renderizar dinámicamente las pestañas según las categorías del usuario
+function renderizarCategorias() {
+    const container = document.getElementById('categories-container');
+    container.innerHTML = '';
+    
+    userPrefs.categories.forEach((cat, index) => {
+        const btn = document.createElement('button');
+        btn.innerText = cat === 'Guardados' ? '🔖 Guardados' : cat;
+        if (index === 0) btn.className = 'active';
+        
+        btn.addEventListener('click', (e) => {
+            container.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            categoriaActual = cat;
+            
+            if (cat === 'Guardados') {
+                renderizarTarjetas(userPrefs.savedArticles, true);
+            } else {
+                cargarNoticias(cat);
+            }
+        });
+        container.appendChild(btn);
+    });
+}
+
+// Configuración modal
 const settingsModal = document.getElementById('settings-modal');
 document.getElementById('settings-btn').addEventListener('click', () => {
     document.getElementById('blocked-input').value = userPrefs.blockedKeywords.join(', ');
+    document.getElementById('categories-input').value = userPrefs.categories.filter(c => c !== 'Guardados').join(', ');
     settingsModal.classList.remove('hidden');
+    document.body.classList.add('modal-open');
 });
-document.getElementById('close-settings').addEventListener('click', () => settingsModal.classList.add('hidden'));
+
+document.getElementById('close-settings').addEventListener('click', () => {
+    settingsModal.classList.add('hidden');
+    document.body.classList.remove('modal-open');
+});
+
 document.getElementById('save-settings-btn').addEventListener('click', () => {
-    const rawVal = document.getElementById('blocked-input').value;
-    userPrefs.blockedKeywords = rawVal.split(',').map(k => k.trim()).filter(k => k.length > 0);
+    const rawKw = document.getElementById('blocked-input').value;
+    const rawCats = document.getElementById('categories-input').value;
+    
+    userPrefs.blockedKeywords = rawKw.split(',').map(k => k.trim()).filter(k => k.length > 0);
+    const nuevasCats = rawCats.split(',').map(c => c.trim()).filter(c => c.length > 0);
+    if (!nuevasCats.includes('Guardados')) nuevasCats.push('Guardados');
+    
+    userPrefs.categories = nuevasCats;
     savePrefs();
     settingsModal.classList.add('hidden');
-    cargarNoticias(categoriaActual);
+    document.body.classList.remove('modal-open');
+    renderizarCategorias();
+    cargarNoticias(userPrefs.categories[0]);
 });
 
-// Lanzar Onboarding automático si es la primera vez estricta
-if (!localStorage.getItem('newsPrefs')) {
-    settingsModal.classList.remove('hidden');
-}
-
-// --- 3. ELEMENTOS DE UI Y MODAL DE LECTURA ---
-const tabs = document.querySelectorAll('.categories-scroll button');
-const feedContainer = document.getElementById('feed-container');
+// --- 3. MODAL DE LECTURA INMERSIVA ---
 const readerModal = document.getElementById('reader-modal');
-
-document.getElementById('close-modal').addEventListener('click', () => readerModal.classList.add('hidden'));
+document.getElementById('close-modal').addEventListener('click', () => {
+    readerModal.classList.add('hidden');
+    document.body.classList.remove('modal-open');
+});
 
 let articulosEnPantalla = [];
-let categoriaActual = 'Resumen del Día';
+let categoriaActual = userPrefs.categories[0] || 'Resumen del Día';
 
-tabs.forEach(tab => {
-    tab.addEventListener('click', (e) => {
-        tabs.forEach(t => t.classList.remove('active'));
-        e.target.classList.add('active');
-        categoriaActual = e.target.getAttribute('data-category');
-        
-        if (categoriaActual === 'Guardados') {
-            renderizarTarjetas(userPrefs.savedArticles, true);
-        } else {
-            cargarNoticias(categoriaActual);
-        }
-    });
-});
-
-// --- 4. EXTRACCIÓN DE MULTIMEDIA (FOTOS Y VÍDEOS) ---
+// --- 4. EXTRACCIÓN MULTIMEDIA Y TL;DR ---
 function extraerMultimedia(item) {
-    // Buscar imagen en thumbnail, enclosure o dentro del contenido HTML
     let imageUrl = item.thumbnail || (item.enclosure && item.enclosure.link);
     if (!imageUrl && item.content) {
         const imgMatch = item.content.match(/<img[^>]+src="([^">]+)"/);
@@ -76,7 +97,6 @@ function extraerMultimedia(item) {
         if (imgMatch) imageUrl = imgMatch[1];
     }
 
-    // Buscar vídeo embebido (iframe o video)
     let videoHtml = '';
     if (item.content) {
         const iframeMatch = item.content.match(/<iframe[^>]+src="([^">]+)"[^>]*>.*?<\/iframe>/);
@@ -88,7 +108,6 @@ function extraerMultimedia(item) {
     return { imageUrl, videoHtml };
 }
 
-// --- 5. GENERADOR DE TL;DR ---
 function generarTLDR(textoHtml) {
     if (!textoHtml) return "Sin resumen disponible.";
     let textoPlano = textoHtml.replace(/<[^>]*>?/gm, '');
@@ -96,7 +115,9 @@ function generarTLDR(textoHtml) {
     return frases.length > 0 ? frases.slice(0, 2).join('. ') + '...' : "Contenido de lectura rápida.";
 }
 
-// --- 6. RENDERIZAR TARJETAS CON BLUR Y ACCIONES ---
+// --- 5. RENDERIZAR TARJETAS ---
+const feedContainer = document.getElementById('feed-container');
+
 function renderizarTarjetas(articulos, esGuardado = false) {
     feedContainer.innerHTML = '';
     
@@ -120,7 +141,7 @@ function renderizarTarjetas(articulos, esGuardado = false) {
             <div class="card-content-pad">
                 <div class="card-header-meta">
                     <span>🗞️ ${item.fuente}</span>
-                    <span class="category-tag">${categoriaActual}</span>
+                    <span>${item.fecha || 'Reciente'}</span>
                 </div>
                 <h2>${item.titulo}</h2>
                 <p class="tldr">▶ ${tldr}</p>
@@ -137,17 +158,17 @@ function renderizarTarjetas(articulos, esGuardado = false) {
             </div>
         `;
 
-        // Eventos seguros sin colapsar por comillas
         card.querySelector('.btn-leer').addEventListener('click', () => {
             document.getElementById('reader-title').innerText = item.titulo;
             document.getElementById('reader-source').innerText = item.fuente;
-            document.getElementById('reader-date').innerText = new Date().toLocaleDateString();
+            document.getElementById('reader-date').innerText = item.fecha || new Date().toLocaleDateString();
             
             const heroMedia = document.getElementById('reader-hero-media');
             heroMedia.innerHTML = media.videoHtml || (media.imageUrl ? `<img src="${media.imageUrl}" alt="Hero">` : '');
 
             document.getElementById('reader-body').innerHTML = item.contenido || item.resumen;
             readerModal.classList.remove('hidden');
+            document.body.classList.add('modal-open');
         });
 
         card.querySelector('.btn-guardar').addEventListener('click', () => {
@@ -177,17 +198,23 @@ function renderizarTarjetas(articulos, esGuardado = false) {
     });
 }
 
-// --- 7. CARGA DE RSS CON FILTROS ---
+// --- 6. CARGA RSS CON FILTRO ESTRICTO DE FECHA RECIENTE ---
 async function cargarNoticias(categoria) {
-    feedContainer.innerHTML = `<p style="text-align:center; padding: 40px; color: var(--text-muted);">Cargando flujo optimizado...</p>`;
+    feedContainer.innerHTML = `<p style="text-align:center; padding: 40px; color: var(--text-muted);">Sincronizando noticias recientes...</p>`;
     articulosEnPantalla = [];
     
     let rssUrl = 'https://feeds.bbci.co.uk/mundo/rss.xml';
-    if (categoria === 'Finanzas') rssUrl = 'https://e00-expansion.uecdn.es/rss/mercados.xml';
-    if (categoria === 'Tecnología') rssUrl = 'https://feeds.weblogssl.com/xataka2';
-    if (categoria === 'Deportes') rssUrl = 'https://as.com/rss/futbol/primera.xml';
+    let catLower = categoria.toLowerCase();
+    
+    if (catLower.includes('finanz') || catLower.includes('mercado')) {
+        rssUrl = 'https://e00-expansion.uecdn.es/rss/mercados.xml';
+    } else if (catLower.includes('tecnolog') || catLower.includes('xataka')) {
+        rssUrl = 'https://feeds.weblogssl.com/xataka2';
+    } else if (catLower.includes('deporte') || catLower.includes('futbol')) {
+        rssUrl = 'https://as.com/rss/motor/formula1.xml'; // Feed deportivo activo actual
+    }
 
-    const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
+    const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&_t=${Date.now()}`;
 
     try {
         const respuesta = await fetch(proxyUrl);
@@ -195,19 +222,26 @@ async function cargarNoticias(categoria) {
         
         if (datos.status !== "ok") throw new Error("Error RSS");
 
-        datos.items.forEach(item => {
-            const titular = item.title ? item.title.toLowerCase() : "";
+        // Filtrar y ordenar por fecha para garantizar que sean recientes
+        let itemsValidos = datos.items.map(item => {
+            return {
+                titulo: item.title,
+                resumen: item.description || "",
+                contenido: item.content || item.description || "",
+                fuente: datos.feed.title || categoria,
+                fechaPub: new Date(item.pubDate || Date.now()),
+                fecha: new Date(item.pubDate || Date.now()).toLocaleDateString(),
+                enclosure: item.enclosure || null,
+                thumbnail: item.thumbnail || null
+            };
+        }).sort((a, b) => b.fechaPub - a.fechaPub); // Orden descendente (más nuevo primero)
+
+        itemsValidos.forEach(item => {
+            const titular = item.titulo ? item.titulo.toLowerCase() : "";
             const bloqueado = userPrefs.blockedKeywords.some(kw => titular.includes(kw.toLowerCase().trim()));
             
             if (!bloqueado) {
-                articulosEnPantalla.push({
-                    titulo: item.title,
-                    resumen: item.description || "",
-                    contenido: item.content || item.description || "",
-                    fuente: datos.feed.title || categoria,
-                    enclosure: item.enclosure || null,
-                    thumbnail: item.thumbnail || null
-                });
+                articulosEnPantalla.push(item);
             }
         });
 
@@ -219,5 +253,6 @@ async function cargarNoticias(categoria) {
     }
 }
 
-// Arrancar app
-cargarNoticias('Resumen del Día');
+// Inicializar interfaz
+renderizarCategorias();
+cargarNoticias(userPrefs.categories[0]);
