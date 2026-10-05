@@ -11,7 +11,6 @@
         <h1>Mi Feed</h1>
         <div class="actions">
             <button id="theme-toggle">🌓</button>
-            <button id="settings-toggle">⚙️</button>
         </div>
     </header>
 
@@ -20,24 +19,19 @@
         <button>Finanzas</button>
         <button>Tecnología</button>
         <button>Deportes</button>
+        <button>Guardados 🔖</button>
     </nav>
 
-    <main id="feed-container">
-        <!-- Aquí se inyectarán las tarjetas de noticias con JavaScript -->
-        <article class="news-card">
-            <div class="card-meta">
-                <span class="source">🗞️ Bloomberg</span>
-                <span class="read-time">⏱️ 3 min</span>
-            </div>
-            <h2>Ejemplo del diseño del titular ultralimpio para tu lectura</h2>
-            <p class="tldr">▶ Esto es una viñeta TL;DR autogenerada con lo más importante para leer rápido.</p>
-            <div class="card-actions">
-                <button title="Muro roto / Leer completo">🔓 Leer</button>
-                <button title="No me interesa este tema">❌ Ocultar</button>
-                <button title="Guardar para luego">🔖 Guardar</button>
-            </div>
-        </article>
-    </main>
+    <main id="feed-container"></main>
+
+    <!-- Ventana de Lectura (Muro Roto) -->
+    <div id="reader-modal" class="modal hidden">
+        <div class="modal-content">
+            <button id="close-modal">✖ Cerrar</button>
+            <h1 id="reader-title"></h1>
+            <div id="reader-body"></div>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>
