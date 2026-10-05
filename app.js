@@ -1,4 +1,4 @@
-// Gestión de Tema
+// --- 1. GESTIÓN DE TEMA (CLARO / OSCURO) ---
 const themeToggleBtn = document.getElementById('theme-toggle');
 const currentTheme = localStorage.getItem('theme') || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
 document.documentElement.setAttribute('data-theme', currentTheme);
@@ -10,118 +10,128 @@ themeToggleBtn.addEventListener('click', () => {
     localStorage.setItem('theme', newTheme);
 });
 
-// Filtros y Perfil Local
-const userPrefs = JSON.parse(localStorage.getItem('newsPrefs')) || { 
+// --- 2. PERFIL Y CONFIGURACIÓN LOCAL ---
+let userPrefs = JSON.parse(localStorage.getItem('newsPrefs')) || { 
     blockedKeywords: ['clickbait', 'woke', 'sorprendente'], 
     savedArticles: [] 
 };
 function savePrefs() { localStorage.setItem('newsPrefs', JSON.stringify(userPrefs)); }
 
-// Elementos de la interfaz
+// Mostrar indicador de usuario en vivo
+document.getElementById('user-badge').innerText = `👤 Perfil Local`;
+
+// --- 3. ELEMENTOS DE INTERFAZ Y MODALES ---
 const tabs = document.querySelectorAll('.categories-scroll button');
 const feedContainer = document.getElementById('feed-container');
-const modal = document.getElementById('reader-modal');
-const closeModal = document.getElementById('close-modal');
+const readerModal = document.getElementById('reader-modal');
+const settingsModal = document.getElementById('settings-modal');
 
-// Bóveda temporal para evitar errores de sintaxis en el HTML
-let articulosEnPantalla = []; 
+document.getElementById('close-modal').addEventListener('click', () => readerModal.classList.add('hidden'));
+document.getElementById('close-settings').addEventListener('click', () => settingsModal.classList.add('hidden'));
+document.getElementById('settings-btn').addEventListener('click', () => {
+    document.getElementById('blocked-input').value = userPrefs.blockedKeywords.join(', ');
+    settingsModal.classList.remove('hidden');
+});
+document.getElementById('save-settings-btn').addEventListener('click', () => {
+    const rawVal = document.getElementById('blocked-input').value;
+    userPrefs.blockedKeywords = rawVal.split(',').map(k => k.trim()).filter(k => k.length > 0);
+    savePrefs();
+    settingsModal.classList.add('hidden');
+    alert('Filtros actualizados localmente.');
+    location.reload();
+});
 
-closeModal.addEventListener('click', () => modal.classList.add('hidden'));
+let articulosEnPantalla = [];
+let categoriaActual = 'Resumen del Día';
 
-// Lógica de Pestañas
+// --- 4. NAVEGACIÓN POR PESTAÑAS ---
 tabs.forEach(tab => {
     tab.addEventListener('click', (e) => {
         tabs.forEach(t => t.classList.remove('active'));
         e.target.classList.add('active');
-        const categoria = e.target.innerText;
+        categoriaActual = e.target.getAttribute('data-category');
         
-        if (categoria.includes('Guardados')) {
-            mostrarGuardados();
+        if (categoriaActual === 'Guardados') {
+            renderizarTarjetas(userPrefs.savedArticles, true);
         } else {
-            cargarNoticias(categoria);
+            cargarNoticias(categoriaActual);
         }
     });
 });
 
-// Generador de TL;DR
+// --- 5. GENERADOR DE TL;DR ---
 function generarTLDR(textoHtml) {
     if (!textoHtml) return "Sin resumen disponible.";
-    let textoPlano = textoHtml.replace(/<[^>]*>?/gm, ''); // Quita etiquetas HTML
+    let textoPlano = textoHtml.replace(/<[^>]*>?/gm, '');
     let frases = textoPlano.split('. ').filter(f => f.length > 20);
-    return frases.length > 0 ? frases.slice(0, 2).join('. ') + '...' : "Contenido muy breve.";
+    return frases.length > 0 ? frases.slice(0, 2).join('. ') + '...' : "Contenido breve.";
 }
 
-// Funciones globales vinculadas a los botones numéricamente
-window.abrirLector = function(index, esGuardado = false) {
-    const articulo = esGuardado ? userPrefs.savedArticles[index] : articulosEnPantalla[index];
-    document.getElementById('reader-title').innerText = articulo.titulo;
-    document.getElementById('reader-body').innerHTML = articulo.contenido || articulo.resumen;
-    modal.classList.remove('hidden');
-    window.scrollTo(0, 0);
-};
-
-window.guardarNoticia = function(index) {
-    const articulo = articulosEnPantalla[index];
-    if (!userPrefs.savedArticles.some(a => a.titulo === articulo.titulo)) {
-        userPrefs.savedArticles.push(articulo);
-        savePrefs();
-        alert('🔖 Noticia guardada para leer sin conexión.');
-    }
-};
-
-window.borrarGuardado = function(index) {
-    userPrefs.savedArticles.splice(index, 1);
-    savePrefs();
-    mostrarGuardados();
-};
-
-window.ocultarNoticia = function(btnElement) {
-    btnElement.closest('.news-card').style.display = 'none';
-};
-
-// Inyector visual
+// --- 6. RENDERIZAR TARJETAS CON EVENTOS SEGUROS ---
 function renderizarTarjetas(articulos, esGuardado = false) {
     feedContainer.innerHTML = '';
     
     if (articulos.length === 0) {
-        feedContainer.innerHTML = '<p style="text-align:center; padding: 40px;">No hay noticias para mostrar en esta sección.</p>';
+        feedContainer.innerHTML = `<p style="text-align:center; padding: 40px; color: var(--text-muted);">No hay noticias disponibles en esta sección.</p>`;
         return;
     }
 
     articulos.forEach((item, index) => {
         const tldr = generarTLDR(item.resumen);
         
-        // El botón ahora solo pasa el índice numérico (0, 1, 2...), blindando el código
-        let actionBtn = esGuardado 
-            ? `<button onclick="borrarGuardado(${index})">🗑️ Borrar</button>`
-            : `<button onclick="guardarNoticia(${index})">🔖 Guardar</button>`;
-
-        const articuloHTML = `
-            <article class="news-card">
-                <div class="card-meta"><span class="source">🗞️ ${item.fuente}</span></div>
-                <h2>${item.titulo}</h2>
-                <p class="tldr">▶ ${tldr}</p>
-                <div class="card-actions">
-                    <button onclick="abrirLector(${index}, ${esGuardado})">🔓 Leer Completa</button>
-                    ${actionBtn}
-                    ${!esGuardado ? `<button onclick="ocultarNoticia(this)">❌ Ocultar</button>` : ''}
-                </div>
-            </article>
+        const card = document.createElement('article');
+        card.className = 'news-card';
+        card.innerHTML = `
+            <div class="card-meta">🗞️ ${item.fuente}</div>
+            <h2>${item.titulo}</h2>
+            <p class="tldr">▶ ${tldr}</p>
+            <div class="card-actions">
+                <button class="primary btn-leer">🔓 Leer Completa</button>
+                <button class="btn-accion">${esGuardado ? '🗑️ Borrar' : '🔖 Guardar'}</button>
+                ${!esGuardado ? '<button class="btn-ocultar">❌ Ocultar</button>' : ''}
+            </div>
         `;
-        feedContainer.insertAdjacentHTML('beforeend', articuloHTML);
+
+        // Asociar eventos por código (elimina por completo los fallos de comillas o sintaxis)
+        card.querySelector('.btn-leer').addEventListener('click', () => {
+            document.getElementById('reader-title').innerText = item.titulo;
+            document.getElementById('reader-body').innerHTML = item.contenido || item.resumen;
+            readerModal.classList.remove('hidden');
+            window.scrollTo(0, 0);
+        });
+
+        card.querySelector('.btn-accion').addEventListener('click', () => {
+            if (esGuardado) {
+                userPrefs.savedArticles.splice(index, 1);
+                savePrefs();
+                renderizarTarjetas(userPrefs.savedArticles, true);
+            } else {
+                if (!userPrefs.savedArticles.some(a => a.titulo === item.titulo)) {
+                    userPrefs.savedArticles.push(item);
+                    savePrefs();
+                    alert('🔖 Noticia guardada en tu bóveda local.');
+                } else {
+                    alert('Esta noticia ya estaba guardada.');
+                }
+            }
+        });
+
+        if (!esGuardado) {
+            card.querySelector('.btn-ocultar').addEventListener('click', () => {
+                card.remove();
+            });
+        }
+
+        feedContainer.appendChild(card);
     });
 }
 
-function mostrarGuardados() {
-    renderizarTarjetas(userPrefs.savedArticles, true);
-}
-
-// Extracción y Filtrado
+// --- 7. CARGA DE RSS ---
 async function cargarNoticias(categoria) {
-    feedContainer.innerHTML = '<p style="text-align:center; padding: 40px;">Buscando información limpia...</p>';
-    articulosEnPantalla = []; // Limpiar la bóveda al cambiar de pestaña
+    feedContainer.innerHTML = `<p style="text-align:center; padding: 40px; color: var(--text-muted);">Sincronizando actualidad...</p>`;
+    articulosEnPantalla = [];
     
-    let rssUrl = 'https://feeds.bbci.co.uk/mundo/rss.xml'; // Resumen global
+    let rssUrl = 'https://feeds.bbci.co.uk/mundo/rss.xml';
     if (categoria === 'Finanzas') rssUrl = 'https://e00-expansion.uecdn.es/rss/mercados.xml';
     if (categoria === 'Tecnología') rssUrl = 'https://feeds.weblogssl.com/xataka2';
     if (categoria === 'Deportes') rssUrl = 'https://as.com/rss/futbol/primera.xml';
@@ -132,14 +142,13 @@ async function cargarNoticias(categoria) {
         const respuesta = await fetch(proxyUrl);
         const datos = await respuesta.json();
         
-        if (datos.status !== "ok") throw new Error("Fallo en la conversión RSS");
+        if (datos.status !== "ok") throw new Error("Error RSS");
 
         datos.items.forEach(item => {
             const titular = item.title ? item.title.toLowerCase() : "";
             const bloqueado = userPrefs.blockedKeywords.some(kw => titular.includes(kw.toLowerCase()));
             
             if (!bloqueado) {
-                // Se guardan temporalmente de forma segura
                 articulosEnPantalla.push({
                     titulo: item.title,
                     resumen: item.description || "",
@@ -152,10 +161,10 @@ async function cargarNoticias(categoria) {
         renderizarTarjetas(articulosEnPantalla, false);
 
     } catch (error) {
-        console.error("Error extrañendo datos:", error);
-        feedContainer.innerHTML = '<p style="text-align:center; color: red;">Fallo en la conexión. Los servidores de origen podrían estar bloqueando la petición.</p>';
+        console.error(error);
+        feedContainer.innerHTML = `<p style="text-align:center; color: #ef4444; padding: 40px;">No se pudieron cargar los datos de la red de origen.</p>`;
     }
 }
 
-// Arrancar app al iniciar
+// Inicializar app
 cargarNoticias('Resumen del Día');
