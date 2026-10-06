@@ -1,34 +1,34 @@
-// --- 1. REPOSITORIO DE FUENTES Y CONFIGURACIÓN INICIAL ---
+// --- 1. CONFIGURACIÓN Y CATÁLOGO GLOBAL ---
 const GLOBAL_PRESETS = [
     { name: "Xataka", category: "Tecnología", url: "https://feeds.weblogssl.com/xataka2" },
     { name: "Genbeta", category: "Tecnología", url: "https://feeds.weblogssl.com/genbeta" },
     { name: "El País", category: "General", url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada" },
     { name: "El Mundo", category: "General", url: "https://e00-elmundo.uecdn.es/elmundo/rss/portada.xml" },
-    { name: "Expansion", category: "Finanzas", url: "https://e00-expansion.uecdn.es/rss/mercados.xml" },
+    { name: "Expansión", category: "Finanzas", url: "https://e00-expansion.uecdn.es/rss/mercados.xml" },
     { name: "3DJuegos", category: "Videojuegos", url: "https://www.3djuegos.com/feed/news" },
-    { name: "Marca Motor", category: "Deportes", url: "https://as.com/rss/motor/formula1.xml" }
+    { name: "As Motor", category: "Deportes", url: "https://as.com/rss/motor/formula1.xml" }
 ];
 
-let userPrefs = JSON.parse(localStorage.getItem('newsPrefs_v3')) || {
+let userPrefs = JSON.parse(localStorage.getItem('newsPrefs_v4')) || {
     blockedKeywords: ['clickbait', 'rumor', 'patrocinado'],
     savedArticles: [],
     categories: [
         { id: 'general', name: 'Resumen del Día', type: 'general' },
-        { id: 'tech', name: 'Xataka', type: 'feed', url: 'https://feeds.weblogssl.com/xataka2' },
-        { id: 'fin', name: 'Finanzas', type: 'topic', query: 'Finanzas' },
+        { id: 'tech', name: 'Tecnología', type: 'parent', feeds: ['https://feeds.weblogssl.com/xataka2', 'https://feeds.weblogssl.com/genbeta'] },
+        { id: 'games', name: 'Videojuegos', type: 'parent', feeds: ['https://www.3djuegos.com/feed/news'] },
         { id: 'saved', name: 'Guardados', type: 'saved' }
     ],
-    ratings: {} // Armazena ratings por título: 'like', 'dislike', 'woke'
+    ratings: {} // 'like', 'dislike', 'woke'
 };
 
 let activeTabId = userPrefs.categories[0]?.id || 'general';
 let articulosCargados = [];
 
 function savePrefs() {
-    localStorage.setItem('newsPrefs_v3', JSON.stringify(userPrefs));
+    localStorage.setItem('newsPrefs_v4', JSON.stringify(userPrefs));
 }
 
-// --- 2. GESTIÓN DE TEMA DARK/LIGHT ---
+// --- 2. TEMA OSCURO / CLARO ---
 const themeToggleBtn = document.getElementById('theme-toggle');
 const currentTheme = localStorage.getItem('theme') || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
 document.documentElement.setAttribute('data-theme', currentTheme);
@@ -40,7 +40,7 @@ themeToggleBtn.addEventListener('click', () => {
     localStorage.setItem('theme', newTheme);
 });
 
-// --- 3. MENÚ LATERAL Y CATÁLOGO GLOBAL ---
+// --- 3. MENÚ LATERAL Y ANIDACIÓN DE TEMAS ---
 const sidebarDrawer = document.getElementById('sidebar-drawer');
 document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {
     sidebarDrawer.classList.remove('hidden');
@@ -64,10 +64,9 @@ function renderCatalogPresets() {
         item.className = 'preset-item';
         item.innerHTML = `
             <div>
-                <span>${preset.name}</span>
-                <br><small>${preset.category}</small>
+                <span>${preset.name}</span><br><small>${preset.category}</small>
             </div>
-            <button class="primary-btn-sm">+ Pestaña</button>
+            <button class="primary-btn-sm">+ Añadir</button>
         `;
         item.querySelector('button').addEventListener('click', () => {
             const newId = 'feed_' + Date.now();
@@ -81,38 +80,36 @@ function renderCatalogPresets() {
     });
 }
 
-// Agregar Búsqueda por Tema
-document.getElementById('add-topic-btn').addEventListener('click', () => {
-    const input = document.getElementById('topic-input');
-    const topic = input.value.trim();
-    if (!topic) return;
+// Anidar subtemas en categorías existentes
+document.getElementById('add-nested-btn').addEventListener('click', () => {
+    const parentName = document.getElementById('parent-cat-input').value.trim();
+    const subTopic = document.getElementById('sub-topic-input').value.trim();
+    if (!parentName || !subTopic) return;
 
-    const newId = 'topic_' + Date.now();
-    userPrefs.categories.push({ id: newId, name: topic, type: 'topic', query: topic });
+    let parentCat = userPrefs.categories.find(c => c.name.toLowerCase() === parentName.toLowerCase());
+    const googleNewsUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(subTopic)}&hl=es&gl=ES&ceid=ES:es`;
+
+    if (parentCat) {
+        if (!parentCat.feeds) parentCat.feeds = [];
+        parentCat.feeds.push(googleNewsUrl);
+    } else {
+        userPrefs.categories.push({
+            id: 'cat_' + Date.now(),
+            name: parentName,
+            type: 'parent',
+            feeds: [googleNewsUrl]
+        });
+    }
+
     savePrefs();
     renderCategorias();
-    switchTab(newId);
-    input.value = '';
+    document.getElementById('parent-cat-input').value = '';
+    document.getElementById('sub-topic-input').value = '';
     closeSidebar();
+    cargarSeccionActiva();
 });
 
-// Agregar Feed Personalizado por URL
-document.getElementById('add-custom-feed-btn').addEventListener('click', () => {
-    const nameInput = document.getElementById('feed-name-input');
-    const urlInput = document.getElementById('feed-url-input');
-    if (!nameInput.value || !urlInput.value) return;
-
-    const newId = 'custom_' + Date.now();
-    userPrefs.categories.push({ id: newId, name: nameInput.value.trim(), type: 'feed', url: urlInput.value.trim() });
-    savePrefs();
-    renderCategorias();
-    switchTab(newId);
-    nameInput.value = '';
-    urlInput.value = '';
-    closeSidebar();
-});
-
-// --- 4. RENDERIZAR PESTAÑAS DE CATEGORÍAS ---
+// --- 4. RENDERIZAR PESTAÑAS (SIN X DE BORRADO ACCIDENTAL) ---
 function renderCategorias() {
     const container = document.getElementById('categories-container');
     container.innerHTML = '';
@@ -120,27 +117,8 @@ function renderCategorias() {
     userPrefs.categories.forEach((cat) => {
         const btn = document.createElement('button');
         btn.className = `category-tab ${cat.id === activeTabId ? 'active' : ''}`;
-        
-        let icon = cat.type === 'saved' ? '🔖 ' : (cat.type === 'topic' ? '🔍 ' : '');
+        let icon = cat.type === 'saved' ? '🔖 ' : (cat.type === 'parent' ? '📂 ' : '📰 ');
         btn.innerHTML = `${icon}${cat.name}`;
-
-        if (cat.type !== 'saved' && userPrefs.categories.length > 1) {
-            const removeBtn = document.createElement('span');
-            removeBtn.className = 'tab-remove';
-            removeBtn.innerText = ' ✕';
-            removeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                userPrefs.categories = userPrefs.categories.filter(c => c.id !== cat.id);
-                if (activeTabId === cat.id) {
-                    activeTabId = userPrefs.categories[0]?.id || 'general';
-                }
-                savePrefs();
-                renderCategorias();
-                cargarSeccionActiva();
-            });
-            btn.appendChild(removeBtn);
-        }
-
         btn.addEventListener('click', () => switchTab(cat.id));
         container.appendChild(btn);
     });
@@ -152,21 +130,30 @@ function switchTab(id) {
     cargarSeccionActiva();
 }
 
-// --- 5. CARGA DE CONTENIDO RSS CON ANTI-CACHÉ Y ORDENACIÓN ---
+document.getElementById('refresh-tab-btn').addEventListener('click', () => {
+    cargarSeccionActiva();
+});
+
+// --- 5. CARGA RSS, PAYWALL Y FILTRADO POR MEMORIA ---
 async function fetchFeedRSS(url) {
     const cacheBuster = Date.now();
     const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}&_t=${cacheBuster}`;
-    const res = await fetch(proxyUrl);
-    const data = await res.json();
-    return data.status === 'ok' ? data : null;
+    try {
+        const res = await fetch(proxyUrl);
+        const data = await res.json();
+        return data.status === 'ok' ? data : null;
+    } catch {
+        return null;
+    }
 }
 
 async function cargarSeccionActiva() {
     const feedContainer = document.getElementById('feed-container');
-    feedContainer.innerHTML = `<p style="text-align:center; padding: 40px; color: var(--text-muted);">Sincronizando la última hora...</p>`;
+    feedContainer.innerHTML = `<p style="text-align:center; padding: 40px; color: var(--text-muted);">Sincronizando la actualidad...</p>`;
     articulosCargados = [];
 
     const currentTab = userPrefs.categories.find(c => c.id === activeTabId) || userPrefs.categories[0];
+    document.getElementById('active-feed-label').innerText = `Categoría: ${currentTab.name}`;
 
     if (currentTab.type === 'saved') {
         renderizarTarjetas(userPrefs.savedArticles, true);
@@ -174,92 +161,66 @@ async function cargarSeccionActiva() {
     }
 
     try {
-        let rawItems = [];
-
+        let urlsToFetch = [];
         if (currentTab.type === 'general') {
-            const promises = GLOBAL_PRESETS.slice(0, 3).map(p => fetchFeedRSS(p.url));
-            const results = await Promise.all(promises);
-            results.forEach(res => {
-                if (res) {
-                    res.items.forEach(item => item.sourceName = res.feed.title);
-                    rawItems.push(...res.items);
-                }
-            });
+            urlsToFetch = GLOBAL_PRESETS.slice(0, 3).map(p => p.url);
         } else if (currentTab.type === 'feed') {
-            const res = await fetchFeedRSS(currentTab.url);
-            if (res) {
+            urlsToFetch = [currentTab.url];
+        } else if (currentTab.type === 'parent' && currentTab.feeds) {
+            urlsToFetch = currentTab.feeds;
+        }
+
+        let rawItems = [];
+        for (let url of urlsToFetch) {
+            const res = await fetchFeedRSS(url);
+            if (res && res.items) {
                 res.items.forEach(item => item.sourceName = res.feed.title);
-                rawItems = res.items;
-            }
-        } else if (currentTab.type === 'topic') {
-            // Genera la búsqueda directa en tiempo real en Google News RSS
-            const googleNewsUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(currentTab.query)}&hl=es&gl=ES&ceid=ES:es`;
-            const res = await fetchFeedRSS(googleNewsUrl);
-            if (res) {
-                res.items.forEach(item => item.sourceName = currentTab.name);
-                rawItems = res.items;
+                rawItems.push(...res.items);
             }
         }
 
-        // Mapeo, filtrado y ordenación cronológica descendente estricta
-        let itemsProcesados = rawItems.map(item => ({
-            titulo: item.title,
-            resumen: item.description || "",
-            contenido: (item.content && item.content.length > item.description.length) ? item.content : item.description,
-            fuente: item.sourceName || "Actualidad",
-            fechaPub: new Date(item.pubDate || Date.now()),
-            fecha: new Date(item.pubDate || Date.now()).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
-            link: item.link,
-            thumbnail: item.thumbnail || (item.enclosure ? item.enclosure.link : null)
-        })).sort((a, b) => b.fechaPub - a.fechaPub);
+        let itemsProcesados = rawItems.map(item => {
+            const link = item.link || "";
+            // Heurística de Paywall: dominios conocidos o longitud de contenido limitado en RSS
+            const isPaywall = link.includes('elpais.com') || link.includes('ft.com') || link.includes('wsj.com') || (item.content && item.content.length < 300);
+            
+            return {
+                titulo: item.title,
+                resumen: item.description || "",
+                contenido: item.content || item.description || "",
+                fuente: item.sourceName || "Actualidad",
+                fechaPub: new Date(item.pubDate || Date.now()),
+                fecha: new Date(item.pubDate || Date.now()).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+                link: link,
+                thumbnail: item.thumbnail || (item.enclosure ? item.enclosure.link : null),
+                paywall: isPaywall
+            };
+        }).sort((a, b) => b.fechaPub - a.fechaPub);
 
-        // Filtrado anti-ruido por palabras vetadas
+        // Sistema de Memoria / Puntuación: Aplicar penalizaciones o prioridades según votos previos
         articulosCargados = itemsProcesados.filter(item => {
             const titleLower = item.titulo.toLowerCase();
-            return !userPrefs.blockedKeywords.some(kw => kw.length > 0 && titleLower.includes(kw.toLowerCase().trim()));
+            const blocked = userPrefs.blockedKeywords.some(kw => kw.length > 0 && titleLower.includes(kw.toLowerCase().trim()));
+            const rating = userPrefs.ratings[item.titulo];
+            if (blocked || rating === 'dislike' || rating === 'woke') return false;
+            return true;
         });
 
         renderizarTarjetas(articulosCargados, false);
 
     } catch (err) {
         console.error(err);
-        feedContainer.innerHTML = `<p style="text-align:center; color: #ef4444; padding: 40px;">No se pudieron actualizar las noticias de esta sección.</p>`;
+        feedContainer.innerHTML = `<p style="text-align:center; color: #ef4444; padding: 40px;">Error al actualizar la sección.</p>`;
     }
 }
 
-// --- 6. UTILIDADES: TIEMPO DE LECTURA, IDIOMA Y EXTRACTION ---
-function calcularTiempoLectura(textoHtml) {
-    if (!textoHtml) return "1 min";
-    let textoPlano = textoHtml.replace(/<[^>]*>?/gm, '');
-    let palabras = textoPlano.split(/\s+/).length;
-    let minutos = Math.ceil(palabras / 180);
-    return `${minutos} min lectura`;
-}
-
-function detectarIdioma(texto) {
-    if (!texto) return "Español";
-    let textoLC = texto.toLowerCase();
-    let tokensIngles = ['the', 'and', 'with', 'from', 'that', 'this', 'have', 'said', 'will'];
-    let matches = tokensIngles.filter(token => textoLC.includes(` ${token} `)).length;
-    return matches >= 2 ? "English" : "Español";
-}
-
-function extraerMedia(item) {
-    let imageUrl = item.thumbnail;
-    if (!imageUrl && item.contenido) {
-        const match = item.contenido.match(/<img[^>]+src="([^">]+)"/);
-        if (match) imageUrl = match[1];
-    }
-    return imageUrl;
-}
-
-// --- 7. RENDERIZADO DE TARJETAS Y SISTEMA DE MEMORIA / RATING ---
+// --- 6. RENDERIZADO DE TARJETAS CON GESTOS SWIPE Y CLIC GENERAL ---
 function renderizarTarjetas(articulos, esGuardado = false) {
     const feedContainer = document.getElementById('feed-container');
     feedContainer.innerHTML = '';
 
     if (articulos.length === 0) {
-        feedContainer.innerHTML = `<p style="text-align:center; padding: 40px; color: var(--text-muted);">No hay noticias disponibles aquí.</p>`;
+        feedContainer.innerHTML = `<p style="text-align:center; padding: 40px; color: var(--text-muted);">No hay noticias disponibles en este momento.</p>`;
         return;
     }
 
@@ -268,26 +229,26 @@ function renderizarTarjetas(articulos, esGuardado = false) {
         const tiempo = calcularTiempoLectura(item.contenido || item.resumen);
         const idioma = detectarIdioma(item.titulo + " " + item.resumen);
         const mediaUrl = extraerMedia(item);
+        const cleanTLDR = generarTLDRReal(item.resumen);
 
         const card = document.createElement('article');
         card.className = 'news-card';
 
         let mediaHtml = mediaUrl ? `<img src="${mediaUrl}" class="card-media-thumb" alt="Media" loading="lazy">` : '';
-        let cleanTLDR = item.resumen.replace(/<[^>]*>?/gm, '').slice(0, 160) + '...';
+        let paywallBadge = item.paywall ? '🔒 De pago' : '🔓 Libre';
 
         card.innerHTML = `
             ${mediaHtml}
-            <div class="card-content-pad">
+            <div class="card-content-pad" data-action="read">
                 <div class="card-header-meta">
-                    <span>🗞️ ${item.fuente}</span>
+                    <span>🗞️ ${item.fuente} • ${paywallBadge}</span>
                     <span>⏱️ ${tiempo} • 🌐 ${idioma}</span>
                 </div>
                 <h2>${item.titulo}</h2>
                 <p class="tldr">▶ ${cleanTLDR}</p>
 
-                <div class="card-footer-actions">
+                <div class="card-footer-actions" onclick="event.stopPropagation()">
                     <div class="action-group">
-                        <button class="action-btn primary btn-leer">🔓 Leer Completa</button>
                         <button class="action-btn btn-guardar">${esGuardado ? '🗑️ Eliminar' : '🔖 Guardar'}</button>
                     </div>
                     <div class="action-group">
@@ -299,13 +260,32 @@ function renderizarTarjetas(articulos, esGuardado = false) {
             </div>
         `;
 
-        // Botón Leer Completa
-        card.querySelector('.btn-leer').addEventListener('click', () => {
-            abrirReaderModal(item, tiempo, idioma);
-        });
+        // Clic en toda la tarjeta abre la lectura inmersiva
+        card.addEventListener('click', () => abrirReaderModal(item, tiempo, idioma, cleanTLDR));
 
-        // Botón Guardar / Eliminar
-        card.querySelector('.btn-guardar').addEventListener('click', () => {
+        // Soporte de Gestos Swipe (Izquierda: descarte/siguiente | Derecha: guardar)
+        let touchStartX = 0;
+        card.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
+        card.addEventListener('touchend', (e) => {
+            let touchEndX = e.changedTouches[0].screenX;
+            let diff = touchEndX - touchStartX;
+            if (diff > 80) {
+                // Swipe derecha -> Guardar
+                if (!userPrefs.savedArticles.some(a => a.titulo === item.titulo)) {
+                    userPrefs.savedArticles.push(item);
+                    savePrefs();
+                    alert('🔖 Guardado por gesto de deslizamiento.');
+                }
+            } else if (diff < -80) {
+                // Swipe izquierda -> Pasar (eliminar de pantalla y rellenar con nueva)
+                articulosCargados.splice(index, 1);
+                renderizarTarjetas(articulosCargados, esGuardado);
+            }
+        }, {passive: true});
+
+        // Botón Guardar
+        card.querySelector('.btn-guardar').addEventListener('click', (e) => {
+            e.stopPropagation();
             if (esGuardado) {
                 userPrefs.savedArticles.splice(index, 1);
                 savePrefs();
@@ -314,15 +294,15 @@ function renderizarTarjetas(articulos, esGuardado = false) {
                 if (!userPrefs.savedArticles.some(a => a.titulo === item.titulo)) {
                     userPrefs.savedArticles.push(item);
                     savePrefs();
-                    alert('🔖 Guardada en la sección "Guardados".');
+                    alert('🔖 Guardado en bóveda offline.');
                 }
             }
         });
 
-        // Botones de Clasificación / Memoria
-        card.querySelector('.btn-like').addEventListener('click', () => setRating(item.titulo, 'like'));
-        card.querySelector('.btn-dislike').addEventListener('click', () => setRating(item.titulo, 'dislike'));
-        card.querySelector('.btn-woke').addEventListener('click', () => setRating(item.titulo, 'woke'));
+        // Botones de Votación / Memoria
+        card.querySelector('.btn-like').addEventListener('click', (e) => { e.stopPropagation(); setRating(item.titulo, 'like'); });
+        card.querySelector('.btn-dislike').addEventListener('click', (e) => { e.stopPropagation(); setRating(item.titulo, 'dislike'); });
+        card.querySelector('.btn-woke').addEventListener('click', (e) => { e.stopPropagation(); setRating(item.titulo, 'woke'); });
 
         feedContainer.appendChild(card);
     });
@@ -338,19 +318,55 @@ function setRating(titulo, voteType) {
     renderizarTarjetas(articulosCargados, activeTabId === 'saved');
 }
 
-// --- 8. MODAL DE LECTURA Y CONFIGURACIÓN ---
+// --- 7. UTILIDADES (TL;DR, EXPORTACIÓN INMACULADA) ---
+function calcularTiempoLectura(textoHtml) {
+    if (!textoHtml) return "1 min";
+    let palabras = textoHtml.replace(/<[^>]*>?/gm, '').split(/\s+/).length;
+    return `${Math.ceil(palabras / 180)} min`;
+}
+
+function detectarIdioma(texto) {
+    if (!texto) return "Español";
+    let tokensIngles = ['the', 'and', 'with', 'from', 'that', 'this', 'have', 'said', 'will'];
+    let matches = tokensIngles.filter(token => texto.toLowerCase().includes(` ${token} `)).length;
+    return matches >= 2 ? "English" : "Español";
+}
+
+function extraerMedia(item) {
+    let imageUrl = item.thumbnail;
+    if (!imageUrl && item.contenido) {
+        const match = item.contenido.match(/<img[^>]+src="([^">]+)"/);
+        if (match) imageUrl = match[1];
+    }
+    return imageUrl;
+}
+
+function generarTLDRReal(textoHtml) {
+    if (!textoHtml) return "Resumen automático no disponible.";
+    let textoPlano = textoHtml.replace(/<[^>]*>?/gm, '');
+    let frases = textoPlano.split('. ').filter(f => f.length > 30);
+    return frases.length > 0 ? frases.slice(0, 2).join('. ') + '.' : "Contenido de lectura rápida.";
+}
+
+// --- 8. MODAL DE LECTURA E INMACULATE SHARE ---
 const readerModal = document.getElementById('reader-modal');
+let articuloActualModal = null;
+
 document.getElementById('close-modal').addEventListener('click', () => {
     readerModal.classList.add('hidden');
     document.body.classList.remove('modal-open');
 });
 
-function abrirReaderModal(item, tiempo, idioma) {
+function abrirReaderModal(item, tiempo, idioma, tldrText) {
+    articuloActualModal = item;
     document.getElementById('reader-title').innerText = item.titulo;
     document.getElementById('reader-source').innerText = item.fuente;
     document.getElementById('reader-date').innerText = item.fecha;
     document.getElementById('reader-lang').innerText = idioma;
     document.getElementById('reader-time').innerText = tiempo;
+    document.getElementById('reader-paywall-badge').innerText = item.paywall ? '🔒 De pago' : '🔓 Libre';
+
+    document.getElementById('reader-tldr').innerHTML = `<strong>TL;DR:</strong> ${tldrText}`;
 
     const mediaUrl = extraerMedia(item);
     document.getElementById('reader-hero-media').innerHTML = mediaUrl ? `<img src="${mediaUrl}" alt="Hero">` : '';
@@ -363,10 +379,20 @@ function abrirReaderModal(item, tiempo, idioma) {
     readerModal.querySelector('.modal-scroll-area').scrollTop = 0;
 }
 
-// Modal de Configuración
+// Botón de Exportación Inmaculada
+document.getElementById('share-immaculate-btn').addEventListener('click', () => {
+    if (!articuloActualModal) return;
+    const cleanText = `📰 *${articuloActualModal.titulo}*\n🗞️ Fuente: ${articuloActualModal.fuente}\n\n${generarTLDRReal(articuloActualModal.resumen)}\n\n🔗 ${articuloActualModal.link}`;
+    navigator.clipboard.writeText(cleanText).then(() => {
+        alert('✨ ¡Contenido copiado con exportación inmaculada!');
+    });
+});
+
+// Modal de Ajustes
 const settingsModal = document.getElementById('settings-modal');
 document.getElementById('settings-btn').addEventListener('click', () => {
     document.getElementById('blocked-input').value = userPrefs.blockedKeywords.join(', ');
+    renderManageTabsList();
     settingsModal.classList.remove('hidden');
     document.body.classList.add('modal-open');
 });
@@ -375,6 +401,33 @@ document.getElementById('close-settings').addEventListener('click', () => {
     settingsModal.classList.add('hidden');
     document.body.classList.remove('modal-open');
 });
+
+function renderManageTabsList() {
+    const container = document.getElementById('manage-tabs-list');
+    container.innerHTML = '';
+    userPrefs.categories.forEach(cat => {
+        const row = document.createElement('div');
+        row.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:var(--card-bg); padding:6px 10px; border-radius:8px; border:1px solid var(--card-border); font-size:13px;";
+        row.innerHTML = `<span>${cat.name}</span>`;
+        if (cat.type !== 'saved' && userPrefs.categories.length > 1) {
+            const delBtn = document.createElement('button');
+            delBtn.className = 'action-btn';
+            delBtn.innerText = 'Eliminar';
+            delBtn.style.background = '#ef4444';
+            delBtn.style.color = 'white';
+            delBtn.addEventListener('click', () => {
+                userPrefs.categories = userPrefs.categories.filter(c => c.id !== cat.id);
+                if (activeTabId === cat.id) activeTabId = userPrefs.categories[0].id;
+                savePrefs();
+                renderCategorias();
+                renderManageTabsList();
+                cargarSeccionActiva();
+            });
+            row.appendChild(delBtn);
+        }
+        container.appendChild(row);
+    });
+}
 
 document.getElementById('save-settings-btn').addEventListener('click', () => {
     const rawKw = document.getElementById('blocked-input').value;
