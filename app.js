@@ -9,13 +9,13 @@ const GLOBAL_PRESETS = [
     { name: "As Motor", category: "Deportes", url: "https://as.com/rss/motor/formula1.xml" }
 ];
 
-let userPrefs = JSON.parse(localStorage.getItem('newsPrefs_v6')) || {
+let userPrefs = JSON.parse(localStorage.getItem('newsPrefs_v7')) || {
     blockedKeywords: ['clickbait', 'rumor', 'patrocinado'],
     savedArticles: [],
     categories: [
         { id: 'general', name: 'Resumen del Día', type: 'general' },
-        { id: 'tech', name: 'Tecnología', type: 'parent', feeds: ['https://feeds.weblogssl.com/xataka2', 'https://feeds.weblogssl.com/genbeta'] },
-        { id: 'games', name: 'Videojuegos', type: 'parent', feeds: ['https://www.3djuegos.com/feed/news'] },
+        { id: 'tech', name: 'Tecnología', type: 'topic', query: 'Tecnología' },
+        { id: 'games', name: 'Videojuegos', type: 'topic', query: 'Videojuegos' },
         { id: 'saved', name: 'Guardados', type: 'saved' }
     ],
     ratings: {}
@@ -24,8 +24,11 @@ let userPrefs = JSON.parse(localStorage.getItem('newsPrefs_v6')) || {
 let activeTabId = userPrefs.categories[0]?.id || 'general';
 let articulosCargados = [];
 
+// Registro global en sesión para evitar repeticiones entre pestañas
+let sessionSeenTitles = new Set();
+
 function savePrefs() {
-    localStorage.setItem('newsPrefs_v6', JSON.stringify(userPrefs));
+    localStorage.setItem('newsPrefs_v7', JSON.stringify(userPrefs));
 }
 
 // --- 2. TEMA OSCURO / CLARO ---
@@ -40,7 +43,7 @@ themeToggleBtn.addEventListener('click', () => {
     localStorage.setItem('theme', newTheme);
 });
 
-// --- 3. MENÚ LATERAL Y ANIDACIÓN ---
+// --- 3. MENÚ LATERAL Y CREACIÓN DE TEMAS ---
 const sidebarDrawer = document.getElementById('sidebar-drawer');
 document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {
     sidebarDrawer.classList.remove('hidden');
@@ -80,32 +83,24 @@ function renderCatalogPresets() {
     });
 }
 
-document.getElementById('add-nested-btn').addEventListener('click', () => {
-    const parentName = document.getElementById('parent-cat-input').value.trim();
-    const subTopic = document.getElementById('sub-topic-input').value.trim();
-    if (!parentName || !subTopic) return;
+// Crear Tema Individual de forma sencilla
+document.getElementById('add-topic-btn').addEventListener('click', () => {
+    const topicName = document.getElementById('new-topic-input').value.trim();
+    if (!topicName) return;
 
-    let parentCat = userPrefs.categories.find(c => c.name.toLowerCase() === parentName.toLowerCase());
-    const googleNewsUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(subTopic)}&hl=es&gl=ES&ceid=ES:es`;
-
-    if (parentCat) {
-        if (!parentCat.feeds) parentCat.feeds = [];
-        parentCat.feeds.push(googleNewsUrl);
-    } else {
-        userPrefs.categories.push({
-            id: 'cat_' + Date.now(),
-            name: parentName,
-            type: 'parent',
-            feeds: [googleNewsUrl]
-        });
-    }
+    const newId = 'topic_' + Date.now();
+    userPrefs.categories.push({
+        id: newId,
+        name: topicName,
+        type: 'topic',
+        query: topicName
+    });
 
     savePrefs();
     renderCategorias();
-    document.getElementById('parent-cat-input').value = '';
-    document.getElementById('sub-topic-input').value = '';
+    document.getElementById('new-topic-input').value = '';
     closeSidebar();
-    cargarSeccionActiva();
+    switchTab(newId);
 });
 
 // --- 4. GESTIÓN DE PESTAÑAS ---
@@ -116,7 +111,7 @@ function renderCategorias() {
     userPrefs.categories.forEach((cat) => {
         const btn = document.createElement('button');
         btn.className = `category-tab ${cat.id === activeTabId ? 'active' : ''}`;
-        let icon = cat.type === 'saved' ? '🔖 ' : (cat.type === 'parent' ? '📂 ' : '📰 ');
+        let icon = cat.type === 'saved' ? '🔖 ' : (cat.type === 'topic' ? '🔍 ' : '📰 ');
         btn.innerHTML = `${icon}${cat.name}`;
         btn.addEventListener('click', () => switchTab(cat.id));
         container.appendChild(btn);
@@ -130,31 +125,14 @@ function switchTab(id) {
 }
 
 document.getElementById('refresh-tab-btn').addEventListener('click', () => {
-    cargarSeccionActiva();
+    // Limpiamos el registro de sesión al refrescar forzosamente para traer contenido fresco
+    sessionSeenTitles.clear();
+    cargarSeccionActiva(true);
 });
 
-// --- 5. FILTRO DE DESDUPLICACIÓN INTELIGENTE ---
-function eliminarDuplicados(articulos) {
-    const titulosVistos = new Set();
-    const urlsVistas = new Set();
-
-    return articulos.filter(item => {
-        const tituloClean = item.titulo.toLowerCase().replace(/[^\w\s]/gi, '').trim();
-        const urlClean = item.link ? item.link.split('?')[0] : '';
-
-        if (titulosVistos.has(tituloClean) || (urlClean && urlsVistas.has(urlClean))) {
-            return false;
-        }
-
-        titulosVistos.add(tituloClean);
-        if (urlClean) urlsVistas.add(urlClean);
-        return true;
-    });
-}
-
-// --- 6. CARGA RSS Y PROCESAMIENTO ---
-async function fetchFeedRSS(url) {
-    const cacheBuster = Date.now();
+// --- 5. CARGA RSS Y FILTRADO GLOBAL ANTIRREPETICIÓN ---
+async function fetchFeedRSS(url, forceRefresh = false) {
+    const cacheBuster = forceRefresh ? Date.now() : Math.floor(Date.now() / 1800000); // Cambia cada 30 min o fuerza
     const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}&_t=${cacheBuster}`;
     try {
         const res = await fetch(proxyUrl);
@@ -165,7 +143,7 @@ async function fetchFeedRSS(url) {
     }
 }
 
-async function cargarSeccionActiva() {
+async function cargarSeccionActiva(forceRefresh = false) {
     const feedContainer = document.getElementById('feed-container');
     feedContainer.innerHTML = `<p style="text-align:center; padding: 40px; color: var(--text-muted);">Sincronizando actualidad...</p>`;
     articulosCargados = [];
@@ -179,24 +157,39 @@ async function cargarSeccionActiva() {
     }
 
     try {
-        let targets = [];
-        if (currentTab.type === 'general') {
-            targets = GLOBAL_PRESETS.map(p => ({ category: p.category, url: p.url }));
-        } else if (currentTab.type === 'feed') {
-            targets = [{ category: currentTab.name, url: currentTab.url }];
-        } else if (currentTab.type === 'parent' && currentTab.feeds) {
-            targets = currentTab.feeds.map(url => ({ category: currentTab.name, url }));
-        }
-
         let rawItems = [];
-        for (let target of targets) {
-            const res = await fetchFeedRSS(target.url);
+
+        if (currentTab.type === 'general') {
+            // Recopila de los principales presets globales para el resumen del día
+            const promises = GLOBAL_PRESETS.map(p => fetchFeedRSS(p.url, forceRefresh));
+            const results = await Promise.all(promises);
+            results.forEach(res => {
+                if (res && res.items) {
+                    res.items.forEach(item => {
+                        item.sourceName = res.feed.title;
+                        item.categoryTag = GLOBAL_PRESETS.find(p => p.url === res.feed.url)?.category || "General";
+                    });
+                    rawItems.push(...res.items);
+                }
+            });
+        } else if (currentTab.type === 'feed') {
+            const res = await fetchFeedRSS(currentTab.url, forceRefresh);
             if (res && res.items) {
                 res.items.forEach(item => {
                     item.sourceName = res.feed.title;
-                    item.categoryTag = target.category;
+                    item.categoryTag = currentTab.name;
                 });
-                rawItems.push(...res.items);
+                rawItems = rawItems.concat(res.items);
+            }
+        } else if (currentTab.type === 'topic') {
+            const googleNewsUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(currentTab.query)}&hl=es&gl=ES&ceid=ES:es`;
+            const res = await fetchFeedRSS(googleNewsUrl, forceRefresh);
+            if (res && res.items) {
+                res.items.forEach(item => {
+                    item.sourceName = currentTab.name;
+                    item.categoryTag = currentTab.name;
+                });
+                rawItems = rawItems.concat(res.items);
             }
         }
 
@@ -209,7 +202,7 @@ async function cargarSeccionActiva() {
                 resumen: item.description || "",
                 contenido: item.content || item.description || "",
                 fuente: item.sourceName || "Actualidad",
-                categoria: item.categoryTag || "General",
+                categoria: item.categoryTag || currentTab.name,
                 fechaPub: new Date(item.pubDate || Date.now()),
                 fecha: new Date(item.pubDate || Date.now()).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
                 link: link,
@@ -218,8 +211,17 @@ async function cargarSeccionActiva() {
             };
         }).sort((a, b) => b.fechaPub - a.fechaPub);
 
-        let itemsUnicos = eliminarDuplicados(itemsProcesados);
+        // Filtrado Antirrepetición Global entre pestañas de la sesión
+        let itemsUnicos = itemsProcesados.filter(item => {
+            const cleanTitle = item.titulo.toLowerCase().replace(/[^\w\s]/gi, '').trim();
+            if (sessionSeenTitles.has(cleanTitle)) {
+                return false; // Ya fue mostrado en otra pestaña
+            }
+            sessionSeenTitles.add(cleanTitle);
+            return true;
+        });
 
+        // Filtro de palabras vetadas y votos de memoria
         articulosCargados = itemsUnicos.filter(item => {
             const titleLower = item.titulo.toLowerCase();
             const blocked = userPrefs.blockedKeywords.some(kw => kw.length > 0 && titleLower.includes(kw.toLowerCase().trim()));
@@ -237,16 +239,17 @@ async function cargarSeccionActiva() {
     }
 }
 
-// --- 7. RENDERIZADO (TARJETAS ESTÁNDAR VS MODO FYI COMPACTO) ---
+// --- 6. RENDERIZADO (TARJETAS ESTÁNDAR VS MODO FYI COMPACTO) ---
 function renderizarTarjetas(articulos, esGuardado = false, esModoFYI = false) {
     const feedContainer = document.getElementById('feed-container');
     feedContainer.innerHTML = '';
 
     if (articulos.length === 0) {
-        feedContainer.innerHTML = `<p style="text-align:center; padding: 40px; color: var(--text-muted);">No hay noticias disponibles.</p>`;
+        feedContainer.innerHTML = `<p style="text-align:center; padding: 40px; color: var(--text-muted);">No hay noticias nuevas disponibles (todas las recientes ya se mostraron en otras secciones).</p>`;
         return;
     }
 
+    // Modo FYI (Resumen del Día): Tarjetas compactas agrupadas por concepto
     if (esModoFYI && !esGuardado) {
         const grupos = {};
         articulos.forEach(item => {
@@ -263,19 +266,30 @@ function renderizarTarjetas(articulos, esGuardado = false, esModoFYI = false) {
             itemsEnGrupo.forEach(item => {
                 const tiempo = calcularTiempoLectura(item.contenido || item.resumen);
                 const cleanDesc = item.resumen.replace(/<[^>]*>?/gm, '').slice(0, 100) + '...';
+                const isSaved = userPrefs.savedArticles.some(a => a.titulo === item.titulo);
 
                 const card = document.createElement('div');
                 card.className = 'compact-card';
                 card.innerHTML = `
                     <div class="compact-header">
                         <span>🗞️ ${item.fuente} • ${tiempo}</span>
-                        <span>${item.paywall ? '🔒' : '🔓'}</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span>${item.paywall ? '🔒' : '🔓'}</span>
+                            <button class="action-btn btn-guardar-top" style="padding:2px 6px; font-size:10px;">${isSaved ? '🗑️' : '🔖'}</button>
+                        </div>
                     </div>
                     <h3>${item.titulo}</h3>
                     <p class="compact-desc">${cleanDesc}</p>
                 `;
 
                 card.addEventListener('click', () => abrirReaderModal(item, tiempo, detectarIdioma(item.titulo), generarTLDRReal(item.resumen)));
+
+                card.querySelector('.btn-guardar-top').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleGuardarArticulo(item);
+                    renderizarTarjetas(articulosCargados, esGuardado, esModoFYI);
+                });
+
                 groupDiv.appendChild(card);
             });
 
@@ -284,12 +298,14 @@ function renderizarTarjetas(articulos, esGuardado = false, esModoFYI = false) {
         return;
     }
 
-    articulos.forEach((item, index) => {
+    // Modo Estándar
+    articulos.forEach((item) => {
         const rating = userPrefs.ratings[item.titulo] || null;
         const tiempo = calcularTiempoLectura(item.contenido || item.resumen);
         const idioma = detectarIdioma(item.titulo + " " + item.resumen);
         const mediaUrl = extraerMedia(item);
         const cleanTLDR = generarTLDRReal(item.resumen);
+        const isSaved = userPrefs.savedArticles.some(a => a.titulo === item.titulo);
 
         const card = document.createElement('article');
         card.className = 'news-card';
@@ -300,17 +316,15 @@ function renderizarTarjetas(articulos, esGuardado = false, esModoFYI = false) {
         card.innerHTML = `
             ${mediaHtml}
             <div class="card-content-pad">
-                <div class="card-header-meta">
-                    <span>🗞️ ${item.fuente} • ${paywallBadge}</span>
-                    <span>⏱️ ${tiempo} • 🌐 ${idioma}</span>
+                <div class="card-header-top">
+                    <div class="card-header-meta">🗞️ ${item.fuente} • ${paywallBadge}</div>
+                    <button class="action-btn btn-guardar-top">${isSaved ? '🗑️ Eliminar' : '🔖 Guardar'}</button>
                 </div>
                 <h2>${item.titulo}</h2>
                 <p class="tldr">▶ ${cleanTLDR}</p>
+                <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">⏱️ ${tiempo} • 🌐 ${idioma}</div>
 
                 <div class="card-footer-actions" onclick="event.stopPropagation()">
-                    <div class="action-group">
-                        <button class="action-btn btn-guardar">${esGuardado ? '🗑️ Eliminar' : '🔖 Guardar'}</button>
-                    </div>
                     <div class="action-group">
                         <button class="action-btn btn-like ${rating === 'like' ? 'voted-like' : ''}">🔥 Interesante</button>
                         <button class="action-btn btn-dislike ${rating === 'dislike' ? 'voted-dislike' : ''}">👎 No me gusta</button>
@@ -322,35 +336,10 @@ function renderizarTarjetas(articulos, esGuardado = false, esModoFYI = false) {
 
         card.addEventListener('click', () => abrirReaderModal(item, tiempo, idioma, cleanTLDR));
 
-        let touchStartX = 0;
-        card.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
-        card.addEventListener('touchend', (e) => {
-            let diff = e.changedTouches[0].screenX - touchStartX;
-            if (diff > 80) {
-                if (!userPrefs.savedArticles.some(a => a.titulo === item.titulo)) {
-                    userPrefs.savedArticles.push(item);
-                    savePrefs();
-                    alert('🔖 Guardado por gesto.');
-                }
-            } else if (diff < -80) {
-                articulosCargados.splice(index, 1);
-                renderizarTarjetas(articulosCargados, esGuardado, false);
-            }
-        }, {passive: true});
-
-        card.querySelector('.btn-guardar').addEventListener('click', (e) => {
+        card.querySelector('.btn-guardar-top').addEventListener('click', (e) => {
             e.stopPropagation();
-            if (esGuardado) {
-                userPrefs.savedArticles.splice(index, 1);
-                savePrefs();
-                renderizarTarjetas(userPrefs.savedArticles, true, false);
-            } else {
-                if (!userPrefs.savedArticles.some(a => a.titulo === item.titulo)) {
-                    userPrefs.savedArticles.push(item);
-                    savePrefs();
-                    alert('🔖 Guardado en bóveda.');
-                }
-            }
+            toggleGuardarArticulo(item);
+            renderizarTarjetas(articulosCargados, esGuardado, esModoFYI);
         });
 
         card.querySelector('.btn-like').addEventListener('click', (e) => { e.stopPropagation(); setRating(item.titulo, 'like'); });
@@ -359,6 +348,18 @@ function renderizarTarjetas(articulos, esGuardado = false, esModoFYI = false) {
 
         feedContainer.appendChild(card);
     });
+}
+
+function toggleGuardarArticulo(item) {
+    const idx = userPrefs.savedArticles.findIndex(a => a.titulo === item.titulo);
+    if (idx >= 0) {
+        userPrefs.savedArticles.splice(idx, 1);
+        alert('🗑️ Artículo eliminado de guardados.');
+    } else {
+        userPrefs.savedArticles.push(item);
+        alert('🔖 Guardado en bóveda offline.');
+    }
+    savePrefs();
 }
 
 function setRating(titulo, voteType) {
@@ -371,7 +372,7 @@ function setRating(titulo, voteType) {
     cargarSeccionActiva();
 }
 
-// --- 8. UTILIDADES ---
+// --- 7. UTILIDADES ---
 function calcularTiempoLectura(textoHtml) {
     if (!textoHtml) return "1 min";
     let palabras = textoHtml.replace(/<[^>]*>?/gm, '').split(/\s+/).length;
@@ -401,7 +402,7 @@ function generarTLDRReal(textoHtml) {
     return frases.length > 0 ? frases.slice(0, 2).join('. ') + '.' : "Contenido de lectura rápida.";
 }
 
-// --- 9. MODALES ---
+// --- 8. MODALES ---
 const readerModal = document.getElementById('reader-modal');
 let articuloActualModal = null;
 
