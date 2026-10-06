@@ -19,7 +19,7 @@
         </div>
     </header>
 
-    <!-- Menú Lateral / Catálogo y Anidación -->
+    <!-- Menú Lateral / Catálogo y Creación de Temas -->
     <aside id="sidebar-drawer" class="drawer hidden">
         <div class="drawer-backdrop" id="sidebar-backdrop"></div>
         <div class="drawer-content glass-card">
@@ -29,11 +29,10 @@
             </div>
             <div class="drawer-body">
                 <div class="drawer-section">
-                    <h3>📁 Añadir Subtema Anidado</h3>
-                    <p class="section-desc">Agrupa temas dentro de una categoría principal (ej: "Xbox" dentro de "Videojuegos").</p>
-                    <input type="text" id="parent-cat-input" placeholder="Categoría principal (ej: Videojuegos)">
-                    <input type="text" id="sub-topic-input" placeholder="Subtema (ej: PlayStation / Xbox)" style="margin-top: 6px;">
-                    <button id="add-nested-btn" class="primary-btn-sm" style="width: 100%; margin-top: 8px;">+ Crear Subtema Anidado</button>
+                    <h3>🔍 Crear Tema o Categoría</h3>
+                    <p class="section-desc">Escribe cualquier tema (ej: Videojuegos, Fórmula 1, Inteligencia Artificial) para crear una pestaña dedicada.</p>
+                    <input type="text" id="new-topic-input" placeholder="Nombre del tema o categoría">
+                    <button id="add-topic-btn" class="primary-btn-sm" style="width: 100%; margin-top: 8px;">+ Crear Pestaña</button>
                 </div>
 
                 <div class="drawer-section">
@@ -44,7 +43,7 @@
         </div>
     </aside>
 
-    <!-- Barra de Pestañas (Sin X de borrado accidental) -->
+    <!-- Barra de Pestañas -->
     <nav id="categories-container" class="categories-scroll"></nav>
 
     <!-- Barra de Control de Pestaña Activa -->
@@ -64,7 +63,7 @@
         <div class="modal-window glass-card">
             <div class="modal-header-bar">
                 <button id="close-modal" class="close-btn">← Volver al Feed</button>
-                <button id="share-immaculate-btn" class="action-btn primary">✨ Copiar Exportación Inmaculada</button>
+                <button id="share-immaculate-btn" class="action-btn primary">✨ Copiar Exportación</button>
             </div>
             <div class="modal-scroll-area">
                 <div id="reader-hero-media"></div>
