@@ -7,75 +7,64 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Barra Superior -->
     <header class="top-bar">
         <div class="brand">
             <button id="sidebar-toggle-btn" class="icon-btn" title="Menú de Fuentes">☰</button>
             <h1>Nexus</h1>
-            <span id="user-badge">⚡ Live Core</span>
+            <span id="user-badge">⚡ Neural Core</span>
         </div>
         <div class="actions">
             <button id="theme-toggle" class="icon-btn" title="Cambiar Tema">🌓</button>
-            <button id="settings-btn" class="icon-btn" title="Configurar Categorías y Filtros">⚙️</button>
+            <button id="settings-btn" class="icon-btn" title="Ajustes y Filtros">⚙️</button>
         </div>
     </header>
 
-    <!-- Menú Lateral Desplegable (Catálogo Global y Fuentes) -->
+    <!-- Menú Lateral / Catálogo y Anidación -->
     <aside id="sidebar-drawer" class="drawer hidden">
         <div class="drawer-backdrop" id="sidebar-backdrop"></div>
         <div class="drawer-content glass-card">
             <div class="drawer-header">
-                <h2>Fuentes y Catálogo</h2>
+                <h2>Gestión de Fuentes</h2>
                 <button id="close-sidebar-btn" class="close-btn-sm">✕</button>
             </div>
             <div class="drawer-body">
-                
-                <!-- Añadir Tema por Búsqueda -->
                 <div class="drawer-section">
-                    <h3>🔍 Añadir Tema Personalizado</h3>
-                    <p class="section-desc">Crea una pestaña que busque noticias recientes sobre este tema en tiempo real.</p>
-                    <div class="input-inline">
-                        <input type="text" id="topic-input" placeholder="ej: Videojuegos, Formula 1, Cripto">
-                        <button id="add-topic-btn" class="primary-btn-sm">+ Añadir</button>
-                    </div>
+                    <h3>📁 Añadir Subtema Anidado</h3>
+                    <p class="section-desc">Agrupa temas dentro de una categoría principal (ej: "Xbox" dentro de "Videojuegos").</p>
+                    <input type="text" id="parent-cat-input" placeholder="Categoría principal (ej: Videojuegos)">
+                    <input type="text" id="sub-topic-input" placeholder="Subtema (ej: PlayStation / Xbox)" style="margin-top: 6px;">
+                    <button id="add-nested-btn" class="primary-btn-sm" style="width: 100%; margin-top: 8px;">+ Crear Subtema Anidado</button>
                 </div>
 
-                <!-- Añadir Feed RSS Directo -->
                 <div class="drawer-section">
-                    <h3>📡 Añadir Canal RSS Directo</h3>
-                    <input type="text" id="feed-name-input" placeholder="Nombre (ej: Xataka)">
-                    <input type="text" id="feed-url-input" placeholder="URL RSS (ej: https://.../feed.xml)">
-                    <button id="add-custom-feed-btn" class="primary-btn-sm" style="width: 100%; margin-top: 8px;">+ Crear Pestaña Dedicada</button>
+                    <h3>📚 Catálogo Global de Medios</h3>
+                    <div id="preset-catalog-list" class="preset-list"></div>
                 </div>
-
-                <!-- Repositorio / Catálogo Predefinido -->
-                <div class="drawer-section">
-                    <h3>📚 Catálogo Recomendado</h3>
-                    <div id="preset-catalog-list" class="preset-list">
-                        <!-- Generado dinámicamente -->
-                    </div>
-                </div>
-
             </div>
         </div>
     </aside>
 
-    <!-- Navegación de Categorías Dinámica -->
-    <nav id="categories-container" class="categories-scroll">
-        <!-- Renderizado dinámico -->
-    </nav>
+    <!-- Barra de Pestañas (Sin X de borrado accidental) -->
+    <nav id="categories-container" class="categories-scroll"></nav>
 
-    <!-- Contenedor Principal de Noticias -->
+    <!-- Barra de Control de Pestaña Activa -->
+    <div class="feed-control-bar">
+        <span id="active-feed-label">Mostrando actualidad</span>
+        <button id="refresh-tab-btn" class="action-btn">🔄 Refrescar Pestaña</button>
+    </div>
+
+    <!-- Contenedor Principal con Soporte de Swipe -->
     <main id="feed-container">
         <div class="loading-state">Sincronizando actualidad reciente...</div>
     </main>
 
-    <!-- Modal de Lectura Inmersiva (Scroll estricto aislado) -->
+    <!-- Modal de Lectura Inmersiva -->
     <div id="reader-modal" class="modal hidden">
         <div class="modal-backdrop"></div>
         <div class="modal-window glass-card">
             <div class="modal-header-bar">
                 <button id="close-modal" class="close-btn">← Volver al Feed</button>
+                <button id="share-immaculate-btn" class="action-btn primary">✨ Copiar Exportación Inmaculada</button>
             </div>
             <div class="modal-scroll-area">
                 <div id="reader-hero-media"></div>
@@ -84,8 +73,10 @@
                     <span id="reader-source"></span> • 
                     <span id="reader-date"></span> • 
                     <span id="reader-lang"></span> • 
-                    <span id="reader-time"></span>
+                    <span id="reader-time"></span> • 
+                    <span id="reader-paywall-badge"></span>
                 </div>
+                <div class="tldr-box" id="reader-tldr"></div>
                 <hr class="divider">
                 <div id="reader-body"></div>
                 <div class="reader-footer-link">
@@ -95,7 +86,7 @@
         </div>
     </div>
 
-    <!-- Modal de Configuración y Filtros -->
+    <!-- Modal de Ajustes -->
     <div id="settings-modal" class="modal hidden">
         <div class="modal-backdrop"></div>
         <div class="modal-window glass-card">
@@ -103,10 +94,14 @@
                 <button id="close-settings" class="close-btn">✕ Cerrar</button>
             </div>
             <div class="modal-scroll-area">
-                <h2>Ajustes y Filtros Anti-Ruido</h2>
+                <h2>Configuración y Memoria</h2>
                 <div class="settings-group">
                     <label>Palabras clave vetadas (separadas por comas):</label>
-                    <input type="text" id="blocked-input" placeholder="ej: clickbait, rumor, patrocinado">
+                    <input type="text" id="blocked-input" placeholder="ej: clickbait, rumor">
+                </div>
+                <div class="settings-group">
+                    <label>Gestionar Pestañas Activas:</label>
+                    <div id="manage-tabs-list" style="display:flex; flex-direction:column; gap:6px; margin-top:6px;"></div>
                 </div>
                 <button id="save-settings-btn" class="primary-btn">Guardar Cambios</button>
             </div>
