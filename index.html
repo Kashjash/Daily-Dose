@@ -7,27 +7,70 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Barra Superior -->
     <header class="top-bar">
         <div class="brand">
+            <button id="sidebar-toggle-btn" class="icon-btn" title="Menú de Fuentes">☰</button>
             <h1>Nexus</h1>
-            <span id="user-badge">⚡ Pro Core</span>
+            <span id="user-badge">⚡ Live Core</span>
         </div>
         <div class="actions">
-            <button id="theme-toggle" title="Cambiar Tema">🌓</button>
-            <button id="settings-btn" title="Configurar Categorías y Filtros">⚙️</button>
+            <button id="theme-toggle" class="icon-btn" title="Cambiar Tema">🌓</button>
+            <button id="settings-btn" class="icon-btn" title="Configurar Categorías y Filtros">⚙️</button>
         </div>
     </header>
 
-    <!-- Barra de Categorías Asegurada -->
+    <!-- Menú Lateral Desplegable (Catálogo Global y Fuentes) -->
+    <aside id="sidebar-drawer" class="drawer hidden">
+        <div class="drawer-backdrop" id="sidebar-backdrop"></div>
+        <div class="drawer-content glass-card">
+            <div class="drawer-header">
+                <h2>Fuentes y Catálogo</h2>
+                <button id="close-sidebar-btn" class="close-btn-sm">✕</button>
+            </div>
+            <div class="drawer-body">
+                
+                <!-- Añadir Tema por Búsqueda -->
+                <div class="drawer-section">
+                    <h3>🔍 Añadir Tema Personalizado</h3>
+                    <p class="section-desc">Crea una pestaña que busque noticias recientes sobre este tema en tiempo real.</p>
+                    <div class="input-inline">
+                        <input type="text" id="topic-input" placeholder="ej: Videojuegos, Formula 1, Cripto">
+                        <button id="add-topic-btn" class="primary-btn-sm">+ Añadir</button>
+                    </div>
+                </div>
+
+                <!-- Añadir Feed RSS Directo -->
+                <div class="drawer-section">
+                    <h3>📡 Añadir Canal RSS Directo</h3>
+                    <input type="text" id="feed-name-input" placeholder="Nombre (ej: Xataka)">
+                    <input type="text" id="feed-url-input" placeholder="URL RSS (ej: https://.../feed.xml)">
+                    <button id="add-custom-feed-btn" class="primary-btn-sm" style="width: 100%; margin-top: 8px;">+ Crear Pestaña Dedicada</button>
+                </div>
+
+                <!-- Repositorio / Catálogo Predefinido -->
+                <div class="drawer-section">
+                    <h3>📚 Catálogo Recomendado</h3>
+                    <div id="preset-catalog-list" class="preset-list">
+                        <!-- Generado dinámicamente -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </aside>
+
+    <!-- Navegación de Categorías Dinámica -->
     <nav id="categories-container" class="categories-scroll">
-        <!-- Renderizado dinámico blindado -->
+        <!-- Renderizado dinámico -->
     </nav>
 
+    <!-- Contenedor Principal de Noticias -->
     <main id="feed-container">
         <div class="loading-state">Sincronizando actualidad reciente...</div>
     </main>
 
-    <!-- Modal de Lectura Inmersiva (Con scroll interno estricto y sin mover el fondo) -->
+    <!-- Modal de Lectura Inmersiva (Scroll estricto aislado) -->
     <div id="reader-modal" class="modal hidden">
         <div class="modal-backdrop"></div>
         <div class="modal-window glass-card">
@@ -45,11 +88,14 @@
                 </div>
                 <hr class="divider">
                 <div id="reader-body"></div>
+                <div class="reader-footer-link">
+                    <a id="reader-external-link" href="#" target="_blank" rel="noopener">Abrir artículo original en la web ↗</a>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal de Configuración y Categorías Modificables -->
+    <!-- Modal de Configuración y Filtros -->
     <div id="settings-modal" class="modal hidden">
         <div class="modal-backdrop"></div>
         <div class="modal-window glass-card">
@@ -57,19 +103,11 @@
                 <button id="close-settings" class="close-btn">✕ Cerrar</button>
             </div>
             <div class="modal-scroll-area">
-                <h2>Personalización del Sistema</h2>
-                <p class="modal-subtitle">Modifica tus categorías o añade feeds RSS personalizados.</p>
-                
-                <div class="settings-group">
-                    <label>Tus Categorías (separadas por comas):</label>
-                    <input type="text" id="categories-input">
-                </div>
-
+                <h2>Ajustes y Filtros Anti-Ruido</h2>
                 <div class="settings-group">
                     <label>Palabras clave vetadas (separadas por comas):</label>
-                    <input type="text" id="blocked-input">
+                    <input type="text" id="blocked-input" placeholder="ej: clickbait, rumor, patrocinado">
                 </div>
-
                 <button id="save-settings-btn" class="primary-btn">Guardar Cambios</button>
             </div>
         </div>
